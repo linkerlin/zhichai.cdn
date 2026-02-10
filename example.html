@@ -37,6 +37,24 @@
             border-radius: 3px;
             font-size: 14px;
         }
+
+        .verify-results {
+            margin-top: 10px;
+        }
+
+        .verify-item {
+            padding: 8px 10px;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            margin: 8px 0;
+            background: #fff;
+            word-break: break-all;
+        }
+
+        .verify-item strong {
+            display: inline-block;
+            min-width: 70px;
+        }
         
         code {
             background: #ffe4e4;
@@ -55,31 +73,31 @@
     </div>
 
     <div class="image-container">
-        <h2>示例图片 1</h2>
-        <img src="https://via.placeholder.com/600x400/FF6B6B/FFFFFF?text=Example+Image+1" 
+        <h2>示例图片 1（普通 URL）</h2>
+        <img src="https://picx.zhimg.com/80/v2-179473b0766608ad7a6981b4c69e9723_1440w.webp?source=2c26e567" 
              alt="示例图片 1">
-        <p>这张图片会被 IPFSCDN 自动处理并存储到 IPFS。</p>
+        <p>使用普通 URL，验证以完整 URL 作为 key 的替换准确性。</p>
     </div>
 
     <div class="image-container">
-        <h2>示例图片 2</h2>
-        <img src="https://via.placeholder.com/600x400/4ECDC4/FFFFFF?text=Example+Image+2" 
+        <h2>示例图片 2（IPFS 网关 URL）</h2>
+        <img src="https://ipfs.infogaps.net/ipfs/QmPBzjtekLyet9c1cDujHAHtn87X4NkAx5ehG8cAJnGus2?filename=v2-6e94938ea435d7fe5175d77810e909bb_r.jpg" 
              alt="示例图片 2">
-        <p>每张图片都会获得一个唯一的 IPFS CID（内容标识符）。</p>
-    </div>
-
-    <div class="image-container">
-        <h2>示例图片 3</h2>
-        <img src="https://via.placeholder.com/600x400/45B7D1/FFFFFF?text=Example+Image+3" 
-             alt="示例图片 3">
-        <p>图片的 CID 会被添加到 <code>data-ipfs-cid</code> 属性中。</p>
+        <p>使用 IPFS 网关 URL，验证仍按完整 URL 精准替换。</p>
     </div>
 
     <div class="info">
         <h3>在控制台中尝试：</h3>
         <code>ipfscdn.imageCache</code> - 查看已缓存的图片映射<br>
         <code>ipfscdn.helia.libp2p.peerId.toString()</code> - 查看你的节点 ID<br>
-        <code>document.querySelectorAll('img[data-ipfs-cid]')</code> - 查看所有已处理的图片
+        <code>document.querySelectorAll('img[data-ipfs-cid]')</code> - 查看所有已处理的图片<br>
+        <code>document.querySelectorAll('img[data-ipfs-original-url]')</code> - 查看原始 URL 记录
+    </div>
+
+    <div class="info">
+        <h3>替换验证结果</h3>
+        <p>显示每张图片的原始 URL、当前 src 以及处理状态。</p>
+        <div id="verifyResults" class="verify-results"></div>
     </div>
 
     <!-- 引入 IPFSCDN.js -->
@@ -90,14 +108,53 @@
         
         // 使 ipfscdn 全局可访问，方便调试
         window.ipfscdn = ipfscdn;
+
+        const toAbsolute = (url) => {
+            try {
+                return new URL(url, window.location.href).href;
+            } catch (error) {
+                return url || '';
+            }
+        };
+
+        const renderVerification = () => {
+            const container = document.getElementById('verifyResults');
+            if (!container) return;
+            const images = Array.from(document.querySelectorAll('img'));
+            if (images.length === 0) {
+                container.innerHTML = '<div class="verify-item">未找到图片。</div>';
+                return;
+            }
+
+            container.innerHTML = images.map((img, index) => {
+                const originalUrl = img.dataset.ipfsOriginalUrl || '';
+                const currentSrc = img.getAttribute('src') || '';
+                const currentAbsolute = toAbsolute(currentSrc);
+                const processed = Boolean(img.dataset.ipfsCid);
+                const matchesOriginal = currentSrc.startsWith('blob:') || currentAbsolute === originalUrl;
+                const status = processed && matchesOriginal ? 'OK' : 'Pending';
+
+                return `
+                    <div class="verify-item">
+                        <div><strong>#${index + 1}</strong> 状态: ${status}</div>
+                        <div><strong>原始 URL</strong> ${originalUrl || '(empty)'}</div>
+                        <div><strong>当前 src</strong> ${currentSrc || '(empty)'}</div>
+                        <div><strong>CID</strong> ${img.dataset.ipfsCid || '(none)'}</div>
+                    </div>
+                `;
+            }).join('');
+        };
         
         // 监听图片处理完成
         setTimeout(() => {
             const images = document.querySelectorAll('img[data-ipfs-cid]');
             console.log(`已处理 ${images.length} 张图片`);
             images.forEach((img, index) => {
+                const originalUrl = img.dataset.ipfsOriginalUrl;
                 console.log(`图片 ${index + 1} CID:`, img.dataset.ipfsCid);
+                console.log(`图片 ${index + 1} 原始 URL:`, originalUrl);
             });
+            renderVerification();
         }, 10000); // 等待10秒让图片处理完成
     </script>
 </body>

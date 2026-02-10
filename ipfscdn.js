@@ -267,7 +267,7 @@ class IPFSCDN {
         animation: ipfscdn-pulse 1s infinite;
       }
       .ipfscdn-indicator.local {
-        background: #3b82f6;
+        background: #22c55e;
         animation: none;
       }
       .ipfscdn-indicator.remote {
@@ -280,6 +280,34 @@ class IPFSCDN {
       }
     `;
     document.head.appendChild(style);
+  }
+
+  _isImageStillMatching(img, absoluteURL) {
+    const currentSrc = img.getAttribute('src');
+    if (!currentSrc) return false;
+    const currentAbsolute = this.toAbsoluteURL(currentSrc);
+    return currentAbsolute === absoluteURL || img.dataset.ipfsOriginalUrl === absoluteURL;
+  }
+
+  _applyImageData(img, absoluteURL, imageData, cidString, source) {
+    if (!this._isImageStillMatching(img, absoluteURL)) return;
+    const mimeType = this.detectMimeType(absoluteURL);
+    const blobURL = this.createBlobURL(imageData, mimeType);
+    if (!this._isImageStillMatching(img, absoluteURL)) return;
+    img.src = blobURL;
+    img.dataset.ipfsCid = cidString;
+    img.dataset.ipfsSource = source;
+    this.setIndicator(img, source);
+  }
+
+  async _applyImageFromCache(img, absoluteURL) {
+    const cidString = this.imageCache.get(absoluteURL);
+    if (!cidString) return;
+    const cid = CID.parse(cidString);
+    const hasLocal = await this.hasImage(cid);
+    if (!hasLocal) return;
+    const imageData = await this.retrieveImage(cid);
+    this._applyImageData(img, absoluteURL, imageData, cidString, 'local');
   }
 
   /**
@@ -326,82 +354,83 @@ class IPFSCDN {
       return; // Skip data URLs and blob URLs
     }
 
+    img.dataset.ipfsOriginalUrl = absoluteURL;
+
     // Check if already processing
-    if (this.processingQueue.has(absoluteURL)) {
+    const inFlight = this.processingQueue.get(absoluteURL);
+    if (inFlight) {
       console.log(`[IPFSCDN] Already processing: ${absoluteURL}`);
+      await inFlight;
+      await this._applyImageFromCache(img, absoluteURL);
       return;
     }
 
-    this.processingQueue.set(absoluteURL, true);
+    const processingTask = (async () => {
+      // Show loading indicator
+      this.setIndicator(img, 'loading');
 
-    // Show loading indicator
-    this.setIndicator(img, 'loading');
+      try {
+        // Check if we already have the CID cached
+        let cidString = this.imageCache.get(absoluteURL);
+        
+        if (cidString) {
+          console.log(`[IPFSCDN] Using cached CID for ${absoluteURL}: ${cidString}`);
+          const cid = CID.parse(cidString);
+          
+          // Check if we have it locally
+          const hasLocal = await this.hasImage(cid);
+          if (hasLocal) {
+            // Retrieve from local IPFS and update img src
+            const imageData = await this.retrieveImage(cid);
+            this._applyImageData(img, absoluteURL, imageData, cidString, 'local');
+            console.log(`[IPFSCDN] Image loaded from local IPFS: ${cidString}`);
+            return;
+          }
+        }
+
+        // Try to fetch directly from IPFS if this is an IPFS gateway URL
+        const cidFromUrl = this.extractCidFromUrl(absoluteURL);
+        let imageData = null;
+        let source = 'remote';
+        if (cidFromUrl) {
+          try {
+            console.log(`[IPFSCDN] Fetching image from IPFS network: ${cidFromUrl}`);
+            imageData = await this.fetchImageDataFromIpfs(cidFromUrl);
+            source = 'local'; // fetched via IPFS network
+          } catch (error) {
+            console.warn(`[IPFSCDN] IPFS network fetch failed, falling back to gateway: ${cidFromUrl}`);
+          }
+        }
+
+        // Fetch the image from original URL as a fallback
+        if (!imageData) {
+          console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
+          imageData = await this.fetchImageData(absoluteURL);
+          source = 'remote';
+        }
+
+        // Store in IPFS
+        const cid = await this.storeImage(absoluteURL, imageData);
+        cidString = cid.toString();
+
+        // Image is now stored locally, update source accordingly
+        source = 'local';
+
+        // Create blob URL and update image
+        this._applyImageData(img, absoluteURL, imageData, cidString, source);
+        
+        console.log(`[IPFSCDN] Image processed and stored: ${cidString}`);
+      } catch (error) {
+        console.error(`[IPFSCDN] Failed to process image ${absoluteURL}:`, error);
+        this.setIndicator(img, 'remote');
+        // Keep original src on error
+      }
+    })();
+
+    this.processingQueue.set(absoluteURL, processingTask);
 
     try {
-      // Check if we already have the CID cached
-      let cidString = this.imageCache.get(absoluteURL);
-      
-      if (cidString) {
-        console.log(`[IPFSCDN] Using cached CID for ${absoluteURL}: ${cidString}`);
-        const cid = CID.parse(cidString);
-        
-        // Check if we have it locally
-        const hasLocal = await this.hasImage(cid);
-        if (hasLocal) {
-          // Retrieve from local IPFS and update img src
-          const imageData = await this.retrieveImage(cid);
-          const mimeType = this.detectMimeType(absoluteURL);
-          const blobURL = this.createBlobURL(imageData, mimeType);
-          img.src = blobURL;
-          img.dataset.ipfsCid = cidString;
-          img.dataset.ipfsSource = 'local';
-          this.setIndicator(img, 'local');
-          console.log(`[IPFSCDN] Image loaded from local IPFS: ${cidString}`);
-          return;
-        }
-      }
-
-      // Try to fetch directly from IPFS if this is an IPFS gateway URL
-      const cidFromUrl = this.extractCidFromUrl(absoluteURL);
-      let imageData = null;
-      let source = 'remote';
-      if (cidFromUrl) {
-        try {
-          console.log(`[IPFSCDN] Fetching image from IPFS network: ${cidFromUrl}`);
-          imageData = await this.fetchImageDataFromIpfs(cidFromUrl);
-          source = 'local'; // fetched via IPFS network
-        } catch (error) {
-          console.warn(`[IPFSCDN] IPFS network fetch failed, falling back to gateway: ${cidFromUrl}`);
-        }
-      }
-
-      // Fetch the image from original URL as a fallback
-      if (!imageData) {
-        console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
-        imageData = await this.fetchImageData(absoluteURL);
-        source = 'remote';
-      }
-
-      // Store in IPFS
-      const cid = await this.storeImage(absoluteURL, imageData);
-      cidString = cid.toString();
-
-      // Image is now stored locally, update source accordingly
-      source = 'local';
-
-      // Create blob URL and update image
-      const mimeType = this.detectMimeType(absoluteURL);
-      const blobURL = this.createBlobURL(imageData, mimeType);
-      img.src = blobURL;
-      img.dataset.ipfsCid = cidString;
-      img.dataset.ipfsSource = source;
-      this.setIndicator(img, source);
-      
-      console.log(`[IPFSCDN] Image processed and stored: ${cidString}`);
-    } catch (error) {
-      console.error(`[IPFSCDN] Failed to process image ${absoluteURL}:`, error);
-      this.setIndicator(img, 'remote');
-      // Keep original src on error
+      await processingTask;
     } finally {
       this.processingQueue.delete(absoluteURL);
     }
