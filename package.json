@@ -1,0 +1,24 @@
+{
+  "name": "ipfscdn",
+  "version": "1.0.0",
+  "description": "A browser-based CDN using Helia IPFS for P2P image distribution",
+  "main": "ipfscdn.js",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "ipfs",
+    "helia",
+    "cdn",
+    "p2p",
+    "browser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "helia": "^6.0.20",
+    "@helia/unixfs": "^7.0.4",
+    "multiformats": "^13.4.2"
+  }
+}
