@@ -153,18 +153,39 @@ class IPFSCDN {
    * Detect MIME type from URL or data
    */
   detectMimeType(url) {
-    const extension = url.split('.').pop().toLowerCase().split('?')[0];
-    const mimeTypes = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'svg': 'image/svg+xml',
-      'bmp': 'image/bmp',
-      'ico': 'image/x-icon'
-    };
-    return mimeTypes[extension] || 'image/png';
+    try {
+      // Remove query parameters first
+      const urlWithoutQuery = url.split('?')[0];
+      
+      // Check if URL has a file extension
+      const lastDotIndex = urlWithoutQuery.lastIndexOf('.');
+      const lastSlashIndex = urlWithoutQuery.lastIndexOf('/');
+      
+      // Only extract extension if dot comes after last slash
+      if (lastDotIndex > lastSlashIndex && lastDotIndex !== -1) {
+        const extension = urlWithoutQuery.substring(lastDotIndex + 1).toLowerCase();
+        
+        const mimeTypes = {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'webp': 'image/webp',
+          'svg': 'image/svg+xml',
+          'bmp': 'image/bmp',
+          'ico': 'image/x-icon'
+        };
+        
+        if (mimeTypes[extension]) {
+          return mimeTypes[extension];
+        }
+      }
+    } catch (error) {
+      console.warn('[IPFSCDN] Error detecting MIME type:', error);
+    }
+    
+    // Default to PNG if unable to detect
+    return 'image/png';
   }
 
   /**
