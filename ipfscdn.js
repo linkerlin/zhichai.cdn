@@ -17,6 +17,7 @@ class IPFSCDN {
     this.processingQueue = new Map(); // Track images being processed
     this.initialized = false;
     this.initPromise = null;
+    this.ipfsFetchTimeoutMs = 8000;
   }
 
   /**
@@ -189,6 +190,54 @@ class IPFSCDN {
   }
 
   /**
+   * Extract an IPFS CID from a URL if present
+   */
+  extractCidFromUrl(url) {
+    try {
+      if (!url) return null;
+      if (url.startsWith('ipfs://')) {
+        return url.replace('ipfs://', '').split('/')[0] || null;
+      }
+
+      const match = url.match(/\/ipfs\/([^/?#]+)/i);
+      return match ? match[1] : null;
+    } catch (error) {
+      console.warn('[IPFSCDN] Error extracting CID from URL:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Try to fetch image data directly from the IPFS network by CID
+   */
+  async fetchImageDataFromIpfs(cidString) {
+    const cid = CID.parse(cidString);
+
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('IPFS fetch timeout')), this.ipfsFetchTimeoutMs);
+    });
+
+    const fetchTask = (async () => {
+      const chunks = [];
+      for await (const chunk of this.fs.cat(cid)) {
+        chunks.push(chunk);
+      }
+
+      const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      return result;
+    })();
+
+    return Promise.race([fetchTask, timeout]);
+  }
+
+  /**
    * Process a single image element
    */
   async processImage(img) {
@@ -230,9 +279,23 @@ class IPFSCDN {
         }
       }
 
-      // Fetch the image from original URL
-      console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
-      const imageData = await this.fetchImageData(absoluteURL);
+      // Try to fetch directly from IPFS if this is an IPFS gateway URL
+      const cidFromUrl = this.extractCidFromUrl(absoluteURL);
+      let imageData = null;
+      if (cidFromUrl) {
+        try {
+          console.log(`[IPFSCDN] Fetching image from IPFS network: ${cidFromUrl}`);
+          imageData = await this.fetchImageDataFromIpfs(cidFromUrl);
+        } catch (error) {
+          console.warn(`[IPFSCDN] IPFS network fetch failed, falling back to gateway: ${cidFromUrl}`);
+        }
+      }
+
+      // Fetch the image from original URL as a fallback
+      if (!imageData) {
+        console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
+        imageData = await this.fetchImageData(absoluteURL);
+      }
 
       // Store in IPFS
       const cid = await this.storeImage(absoluteURL, imageData);
