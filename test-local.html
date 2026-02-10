@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFSCDN.js 本地测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        .info {
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .image-card {
+            background: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 3px;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .cid {
+            font-family: monospace;
+            font-size: 11px;
+            color: #0066cc;
+            word-break: break-all;
+        }
+        
+        #console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-line {
+            margin: 3px 0;
+            padding: 2px 0;
+        }
+        
+        .log-info {
+            color: #4ec9b0;
+        }
+        
+        .log-error {
+            color: #f48771;
+        }
+    </style>
+</head>
+<body>
+    <h1>IPFSCDN.js 本地测试</h1>
+    
+    <div class="info">
+        <p><strong>说明：</strong>此页面使用本地生成的测试图片（Canvas），无需外部网络访问。</p>
+        <p>打开浏览器控制台查看详细日志。</p>
+    </div>
+
+    <div class="test-images" id="testImages"></div>
+
+    <div class="info">
+        <h3>控制台输出</h3>
+        <div id="console"></div>
+    </div>
+
+    <script>
+        // 创建本地测试图片（使用 Canvas）
+        function createTestImage(width, height, text, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // 绘制背景
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, width, height);
+            
+            // 绘制文字
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, width / 2, height / 2);
+            
+            return canvas.toDataURL('image/png');
+        }
+
+        // 创建测试图片
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#96CEB4', '#FFEAA7'];
+        const testImagesContainer = document.getElementById('testImages');
+        
+        colors.forEach((color, index) => {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            
+            const img = document.createElement('img');
+            img.src = createTestImage(300, 200, `测试 ${index + 1}`, color);
+            img.alt = `测试图片 ${index + 1}`;
+            
+            const status = document.createElement('div');
+            status.className = 'status';
+            status.innerHTML = `
+                <div>测试图片 ${index + 1}</div>
+                <div class="cid">等待处理...</div>
+            `;
+            
+            card.appendChild(img);
+            card.appendChild(status);
+            testImagesContainer.appendChild(card);
+        });
+
+        // 拦截控制台输出
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function addLog(message, type = 'log') {
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            
+            if (type === 'error') {
+                line.classList.add('log-error');
+            } else if (message.includes('[IPFSCDN]')) {
+                line.classList.add('log-info');
+            }
+            
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog(args.join(' '), 'error');
+        };
+
+        // 监听 CID 更新
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'data-ipfs-cid') {
+                    const img = mutation.target;
+                    const cid = img.dataset.ipfsCid;
+                    const card = img.closest('.image-card');
+                    const cidDiv = card.querySelector('.cid');
+                    if (cidDiv) {
+                        cidDiv.textContent = `CID: ${cid}`;
+                        cidDiv.style.color = '#28a745';
+                    }
+                }
+            });
+        });
+        
+        document.querySelectorAll('img').forEach(img => {
+            observer.observe(img, { attributes: true });
+        });
+        
+        console.log('本地测试页面已加载');
+        console.log('等待 IPFSCDN.js 初始化...');
+    </script>
+
+    <!-- 引入 IPFSCDN.js -->
+    <script type="module" src="./ipfscdn.js"></script>
+    
+    <script type="module">
+        import ipfscdn from './ipfscdn.js';
+        window.ipfscdn = ipfscdn;
+    </script>
+</body>
+</html>
