@@ -238,6 +238,83 @@ class IPFSCDN {
   }
 
   /**
+   * Inject status indicator CSS styles (once)
+   */
+  _injectIndicatorStyles() {
+    if (document.getElementById('ipfscdn-indicator-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'ipfscdn-indicator-styles';
+    style.textContent = `
+      .ipfscdn-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+      .ipfscdn-indicator {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        z-index: 10;
+        pointer-events: none;
+        transition: background-color 0.3s ease;
+      }
+      .ipfscdn-indicator.loading {
+        background: #3b82f6;
+        animation: ipfscdn-pulse 1s infinite;
+      }
+      .ipfscdn-indicator.local {
+        background: #3b82f6;
+        animation: none;
+      }
+      .ipfscdn-indicator.remote {
+        background: #f59e0b;
+        animation: none;
+      }
+      @keyframes ipfscdn-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.1); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Add or update status indicator dot on an image
+   * @param {HTMLImageElement} img
+   * @param {'loading'|'local'|'remote'} status
+   */
+  setIndicator(img, status) {
+    this._injectIndicatorStyles();
+
+    // Wrap image if not already wrapped
+    let wrapper = img.parentElement;
+    if (!wrapper || !wrapper.classList.contains('ipfscdn-wrapper')) {
+      wrapper = document.createElement('span');
+      wrapper.className = 'ipfscdn-wrapper';
+      // Copy the image's display-level styling onto the wrapper
+      wrapper.style.display = 'inline-block';
+      wrapper.style.width = img.offsetWidth ? img.offsetWidth + 'px' : '100%';
+      wrapper.style.maxWidth = '100%';
+      img.parentNode.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+    }
+
+    // Create or find indicator
+    let dot = wrapper.querySelector('.ipfscdn-indicator');
+    if (!dot) {
+      dot = document.createElement('span');
+      dot.className = 'ipfscdn-indicator';
+      wrapper.appendChild(dot);
+    }
+
+    dot.className = 'ipfscdn-indicator ' + status;
+  }
+
+  /**
    * Process a single image element
    */
   async processImage(img) {
@@ -257,6 +334,9 @@ class IPFSCDN {
 
     this.processingQueue.set(absoluteURL, true);
 
+    // Show loading indicator
+    this.setIndicator(img, 'loading');
+
     try {
       // Check if we already have the CID cached
       let cidString = this.imageCache.get(absoluteURL);
@@ -274,6 +354,8 @@ class IPFSCDN {
           const blobURL = this.createBlobURL(imageData, mimeType);
           img.src = blobURL;
           img.dataset.ipfsCid = cidString;
+          img.dataset.ipfsSource = 'local';
+          this.setIndicator(img, 'local');
           console.log(`[IPFSCDN] Image loaded from local IPFS: ${cidString}`);
           return;
         }
@@ -282,10 +364,12 @@ class IPFSCDN {
       // Try to fetch directly from IPFS if this is an IPFS gateway URL
       const cidFromUrl = this.extractCidFromUrl(absoluteURL);
       let imageData = null;
+      let source = 'remote';
       if (cidFromUrl) {
         try {
           console.log(`[IPFSCDN] Fetching image from IPFS network: ${cidFromUrl}`);
           imageData = await this.fetchImageDataFromIpfs(cidFromUrl);
+          source = 'local'; // fetched via IPFS network
         } catch (error) {
           console.warn(`[IPFSCDN] IPFS network fetch failed, falling back to gateway: ${cidFromUrl}`);
         }
@@ -295,21 +379,28 @@ class IPFSCDN {
       if (!imageData) {
         console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
         imageData = await this.fetchImageData(absoluteURL);
+        source = 'remote';
       }
 
       // Store in IPFS
       const cid = await this.storeImage(absoluteURL, imageData);
       cidString = cid.toString();
 
+      // Image is now stored locally, update source accordingly
+      source = 'local';
+
       // Create blob URL and update image
       const mimeType = this.detectMimeType(absoluteURL);
       const blobURL = this.createBlobURL(imageData, mimeType);
       img.src = blobURL;
       img.dataset.ipfsCid = cidString;
+      img.dataset.ipfsSource = source;
+      this.setIndicator(img, source);
       
       console.log(`[IPFSCDN] Image processed and stored: ${cidString}`);
     } catch (error) {
       console.error(`[IPFSCDN] Failed to process image ${absoluteURL}:`, error);
+      this.setIndicator(img, 'remote');
       // Keep original src on error
     } finally {
       this.processingQueue.delete(absoluteURL);

@@ -3,295 +3,580 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPFSCDN.js Demo</title>
+    <title>IPFSCDN.js 演示</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            line-height: 1.6;
+        }
+
+        .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 40px 20px;
         }
-        
-        h1 {
-            color: #333;
+
+        header {
             text-align: center;
+            margin-bottom: 60px;
         }
-        
-        .info {
-            background: #fff;
-            padding: 20px;
+
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.2rem;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            background: #1e293b;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        .feature-card h3 {
+            color: #3b82f6;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: #94a3b8;
+        }
+
+        /* IPFS Status Panel */
+        .status-panel {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+            border: 1px solid #334155;
+        }
+
+        .status-panel h2 {
+            margin-bottom: 16px;
+            color: #f1f5f9;
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .status-item {
+            background: #0f172a;
+            padding: 12px 20px;
             border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
         }
-        
-        .info h2 {
-            margin-top: 0;
-            color: #0066cc;
+
+        .status-item .label {
+            color: #64748b;
+            font-size: 12px;
+            margin-bottom: 4px;
         }
-        
-        .status {
-            padding: 10px;
-            background: #e8f4f8;
-            border-left: 4px solid #0066cc;
-            margin-bottom: 10px;
-            font-family: monospace;
+
+        .status-item .value {
+            color: #22c55e;
+            word-break: break-all;
+        }
+
+        .status-item .value.pending {
+            color: #f59e0b;
+        }
+
+        /* Code Section */
+        .code-section {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+            border: 1px solid #334155;
+        }
+
+        .code-section h2 {
+            margin-bottom: 16px;
+        }
+
+        pre {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
             font-size: 14px;
         }
-        
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #22c55e;
+        }
+
+        /* Gallery */
+        .gallery {
+            margin-bottom: 40px;
+        }
+
+        .gallery h2 {
+            margin-bottom: 8px;
+            color: #f1f5f9;
+        }
+
+        .gallery > p {
+            color: #94a3b8;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
         .image-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 20px;
-            margin-top: 20px;
         }
-        
-        .image-card {
-            background: #fff;
-            padding: 15px;
+
+        .image-item {
+            background: #1e293b;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 1px solid #334155;
         }
-        
-        .image-card img {
+
+        .image-item img {
             width: 100%;
             height: 200px;
             object-fit: cover;
-            border-radius: 4px;
-            margin-bottom: 10px;
+            display: block;
         }
-        
+
+        /* Override ipfscdn wrapper inside grid items so it fills the card */
+        .image-item .ipfscdn-wrapper {
+            display: block !important;
+            width: 100% !important;
+        }
+
         .image-info {
+            padding: 12px;
             font-size: 12px;
-            color: #666;
-            word-break: break-all;
+            color: #64748b;
         }
-        
-        .cid {
-            background: #f0f0f0;
-            padding: 5px;
-            border-radius: 3px;
-            font-family: monospace;
-            margin-top: 5px;
-        }
-        
-        button {
-            background: #0066cc;
-            color: white;
-            border: none;
-            padding: 10px 20px;
+
+        .image-info .cid {
+            margin-top: 6px;
+            background: #0f172a;
+            padding: 6px 8px;
             border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
+            font-family: 'Consolas', monospace;
+            word-break: break-all;
+            transition: color 0.3s;
         }
-        
-        button:hover {
-            background: #0052a3;
+
+        /* Status Legend */
+        .status-legend {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 40px;
+            border: 1px solid #334155;
         }
-        
-        .controls {
-            text-align: center;
-            margin: 20px 0;
+
+        .status-legend h3 {
+            margin-bottom: 16px;
+            color: #f1f5f9;
         }
-        
+
+        .status-legend > p {
+            color: #94a3b8;
+            margin-bottom: 16px;
+        }
+
+        .legend-grid {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #94a3b8;
+        }
+
+        .legend-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .legend-dot.local { background: #3b82f6; }
+        .legend-dot.remote { background: #f59e0b; }
+        .legend-dot.loading {
+            background: #3b82f6;
+            animation: legend-pulse 1s infinite;
+        }
+
+        @keyframes legend-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        /* Console */
         #console {
-            background: #1e1e1e;
+            background: #0f172a;
             color: #d4d4d4;
             padding: 15px;
             border-radius: 8px;
-            font-family: 'Courier New', monospace;
+            font-family: 'Consolas', 'Monaco', monospace;
             font-size: 12px;
             max-height: 300px;
             overflow-y: auto;
-            margin-top: 20px;
+            margin-top: 16px;
         }
-        
+
         .console-line {
             margin: 2px 0;
             padding: 2px 0;
         }
-        
-        .console-error {
-            color: #f48771;
+
+        .console-error { color: #f48771; }
+        .console-warn  { color: #dcdcaa; }
+        .console-info  { color: #4ec9b0; }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+            border-top: 1px solid #334155;
+            margin-top: 60px;
         }
-        
-        .console-warn {
-            color: #dcdcaa;
+
+        footer a {
+            color: #3b82f6;
+            text-decoration: none;
         }
-        
-        .console-info {
-            color: #4ec9b0;
+
+        footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <h1>🚀 IPFSCDN.js Demo</h1>
-    
-    <div class="info">
-        <h2>关于 IPFSCDN.js</h2>
-        <p>IPFSCDN.js 是一个基于浏览器的去中心化 CDN 系统，使用 Helia IPFS 技术。</p>
-        <p><strong>功能：</strong></p>
-        <ul>
-            <li>自动拦截页面上的所有图片加载</li>
-            <li>将图片存储到本地 IPFS 节点</li>
-            <li>从本地节点加载图片，减少服务器负载</li>
-            <li>自动向 IPFS 网络分发内容</li>
-        </ul>
-        <div id="status" class="status">
-            正在初始化 IPFSCDN...
+    <div class="container">
+        <header>
+            <h1>🌐 IPFSCDN.js</h1>
+            <p class="subtitle">基于 Helia 的浏览器端 CDN - 演示页面</p>
+        </header>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>📥 自动拦截</h3>
+                <p>页面加载时自动拦截所有 &lt;img&gt; 标签，防止直接从服务器加载</p>
+            </div>
+            <div class="feature-card">
+                <h3>💾 本地存储</h3>
+                <p>将图片存入浏览器中的 Helia IPFS 节点，生成 CID 并固定</p>
+            </div>
+            <div class="feature-card">
+                <h3>🚀 本地提供</h3>
+                <p>后续访问直接从本地节点获取图片数据，大幅降低服务器负载</p>
+            </div>
+            <div class="feature-card">
+                <h3>🔄 自动分发</h3>
+                <p>主动将 CID 广播到 IPFS 网络，让其他节点也能获取这些内容</p>
+            </div>
         </div>
-    </div>
 
-    <div class="controls">
-        <button onclick="addRandomImage()">添加随机图片</button>
-        <button onclick="clearConsole()">清除控制台</button>
-    </div>
-
-    <div class="info">
-        <h2>测试图片</h2>
-        <div class="image-grid" id="imageGrid">
-            <div class="image-card">
-                <img src="https://ipfs.infogaps.net/ipfs/QmXuSzTTKhC5eLBK1gY9higRfZoviNLvV3ortJ4DqHPzD8?filename=v2-d6d63725539876f84d9b1b8b872f89ee_720w.jpg&text=Image+1" alt="测试图片 1">
-                <div class="image-info">
-                    <div>图片 1</div>
-                    <div class="cid" data-for="0">等待处理...</div>
+        <!-- IPFS Status Panel -->
+        <div class="status-panel">
+            <h2>📡 IPFS 节点状态</h2>
+            <div class="status-row">
+                <div class="status-item">
+                    <div class="label">运行状态</div>
+                    <div class="value pending" id="nodeStatus">正在初始化...</div>
                 </div>
-            </div>
-            
-            <div class="image-card">
-                <img src="https://ipfs.infogaps.net/ipfs/QmQDRVwQmbs7NDW6JifgXKRZZR53eyvj1N9UNnWx9M1HWC?filename=v2-1c1758f27cce9e05b068f3d3a69387f8_1440w.avis&text=Image+2" alt="测试图片 2">
-                <div class="image-info">
-                    <div>图片 2</div>
-                    <div class="cid" data-for="1">等待处理...</div>
+                <div class="status-item">
+                    <div class="label">Peer ID</div>
+                    <div class="value pending" id="peerId">等待连接...</div>
                 </div>
-            </div>
-            
-            <div class="image-card">
-                <img src="https://ipfs.infogaps.net/ipfs/QmVKtmrrAgZkgWZuA9w8Hcz8DYoJN8a1fM2hL6yyLAENqf?filename=v2-c5abfb9a273f7ff240920ee7d7d9148b_r.jpg&text=Image+3" alt="测试图片 3">
-                <div class="image-info">
-                    <div>图片 3</div>
-                    <div class="cid" data-for="2">等待处理...</div>
+                <div class="status-item">
+                    <div class="label">已处理图片</div>
+                    <div class="value" id="processedCount">0</div>
                 </div>
-            </div>
-            
-            <div class="image-card">
-                <img src="https://ipfs.infogaps.net/ipfs/QmckftL2pG56Kf52MMf6Wu6afvunT2iYDJpGkEYd3DfC9M?filename=v2-8f41f6b3700bd683dcbe09397aae81aa_720w.jpg&text=Image+4" alt="测试图片 4">
-                <div class="image-info">
-                    <div>图片 4</div>
-                    <div class="cid" data-for="3">等待处理...</div>
+                <div class="status-item">
+                    <div class="label">本地缓存命中</div>
+                    <div class="value" id="cacheHits">0</div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="info">
-        <h2>控制台输出</h2>
-        <div id="console"></div>
+        <div class="code-section">
+            <h2>使用方法</h2>
+            <p style="margin-bottom: 16px; color: #94a3b8;">只需在页面中添加以下脚本，IPFSCDN 会自动处理所有图片：</p>
+            <pre><code>&lt;script type="module" src="ipfscdn.js"&gt;&lt;/script&gt;</code></pre>
+        </div>
+
+        <div class="gallery">
+            <h2>图片画廊（演示 IPFSCDN 效果）</h2>
+            <p>
+                以下图片会被 IPFSCDN 自动处理。首次加载从远程获取，后续从本地 IPFS 节点提供。
+                <br>注意每张图片右下角的彩色圆点标识，表示当前提供状态。
+            </p>
+
+            <div class="controls">
+                <button onclick="addRandomImage()">➕ 添加随机图片</button>
+                <button onclick="clearConsole()">🗑️ 清除控制台</button>
+            </div>
+
+            <div class="image-grid" id="imageGrid">
+                <div class="image-item">
+                    <img src="https://picsum.photos/400/300?random=1" alt="示例图片 1">
+                    <div class="image-info">
+                        <div>示例图片 1</div>
+                        <div class="cid" data-for="0">等待处理...</div>
+                    </div>
+                </div>
+                <div class="image-item">
+                    <img src="https://picsum.photos/400/300?random=2" alt="示例图片 2">
+                    <div class="image-info">
+                        <div>示例图片 2</div>
+                        <div class="cid" data-for="1">等待处理...</div>
+                    </div>
+                </div>
+                <div class="image-item">
+                    <img src="https://picsum.photos/400/300?random=3" alt="示例图片 3">
+                    <div class="image-info">
+                        <div>示例图片 3</div>
+                        <div class="cid" data-for="2">等待处理...</div>
+                    </div>
+                </div>
+                <div class="image-item">
+                    <img src="https://picsum.photos/400/300?random=4" alt="示例图片 4">
+                    <div class="image-info">
+                        <div>示例图片 4</div>
+                        <div class="cid" data-for="3">等待处理...</div>
+                    </div>
+                </div>
+                <div class="image-item">
+                    <img src="https://picsum.photos/400/300?random=5" alt="示例图片 5">
+                    <div class="image-info">
+                        <div>示例图片 5</div>
+                        <div class="cid" data-for="4">等待处理...</div>
+                    </div>
+                </div>
+                <div class="image-item">
+                    <img src="https://picsum.photos/400/300?random=6" alt="示例图片 6">
+                    <div class="image-info">
+                        <div>示例图片 6</div>
+                        <div class="cid" data-for="5">等待处理...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Legend -->
+        <div class="status-legend">
+            <h3>图片状态标识说明</h3>
+            <p>每张图片右下角会显示一个彩色圆点，表示当前图片的提供状态：</p>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-dot local"></div>
+                    <span>本地 IPFS 提供（蓝色）- 图片已存储到本地 IPFS 节点</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot remote"></div>
+                    <span>远程服务器提供（黄色）- 图片从原始服务器加载</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot loading"></div>
+                    <span>处理中（蓝色闪烁）- 正在下载并存储到 IPFS</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console -->
+        <div class="status-panel" style="margin-top: 40px;">
+            <h2>🖥️ 控制台输出</h2>
+            <div id="console"></div>
+        </div>
+
+        <footer>
+            <p>Powered by <a href="https://github.com/ipfs/helia" target="_blank">Helia</a> & IPFS</p>
+            <p style="margin-top: 8px;">IPFSCDN.js - 让浏览器成为 CDN 节点</p>
+        </footer>
     </div>
 
     <script type="module">
-        // Load IPFSCDN
         import ipfscdn from './ipfscdn.js';
-        
-        // Intercept console.log to display in page
+
+        // --- Console interceptor ---
         const consoleDiv = document.getElementById('console');
         const originalLog = console.log;
         const originalError = console.error;
         const originalWarn = console.warn;
-        
+
         function addToConsole(message, type = 'log') {
             const line = document.createElement('div');
             line.className = 'console-line';
-            
-            if (type === 'error') {
-                line.classList.add('console-error');
-            } else if (type === 'warn') {
-                line.classList.add('console-warn');
-            } else if (message.includes('[IPFSCDN]')) {
-                line.classList.add('console-info');
-            }
-            
+            if (type === 'error') line.classList.add('console-error');
+            else if (type === 'warn') line.classList.add('console-warn');
+            else if (message.includes('[IPFSCDN]')) line.classList.add('console-info');
             line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             consoleDiv.appendChild(line);
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
-        
-        console.log = function(...args) {
+
+        console.log = function (...args) {
             originalLog.apply(console, args);
             addToConsole(args.join(' '), 'log');
         };
-        
-        console.error = function(...args) {
+        console.error = function (...args) {
             originalError.apply(console, args);
             addToConsole(args.join(' '), 'error');
         };
-        
-        console.warn = function(...args) {
+        console.warn = function (...args) {
             originalWarn.apply(console, args);
             addToConsole(args.join(' '), 'warn');
         };
-        
-        // Monitor image CID updates
-        const observer = new MutationObserver((mutations) => {
+
+        // --- Status monitoring ---
+        let processedCount = 0;
+        let cacheHits = 0;
+
+        const cidObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'data-ipfs-cid') {
+                if (mutation.type === 'attributes') {
                     const img = mutation.target;
-                    const cid = img.dataset.ipfsCid;
-                    const index = Array.from(document.querySelectorAll('#imageGrid img')).indexOf(img);
-                    if (index >= 0) {
-                        const cidDiv = document.querySelector(`.cid[data-for="${index}"]`);
-                        if (cidDiv) {
-                            cidDiv.textContent = `CID: ${cid}`;
-                            cidDiv.style.color = '#28a745';
+                    if (mutation.attributeName === 'data-ipfs-cid') {
+                        const cid = img.dataset.ipfsCid;
+                        const allImgs = Array.from(document.querySelectorAll('#imageGrid img'));
+                        const index = allImgs.indexOf(img);
+                        if (index >= 0) {
+                            const cidDiv = document.querySelector(`.cid[data-for="${index}"]`);
+                            if (cidDiv) {
+                                cidDiv.textContent = `CID: ${cid}`;
+                                cidDiv.style.color = '#22c55e';
+                            }
+                        }
+                        processedCount++;
+                        document.getElementById('processedCount').textContent = processedCount;
+                    }
+                    if (mutation.attributeName === 'data-ipfs-source') {
+                        if (img.dataset.ipfsSource === 'local') {
+                            cacheHits++;
+                            document.getElementById('cacheHits').textContent = cacheHits;
                         }
                     }
                 }
             });
         });
-        
+
         document.querySelectorAll('#imageGrid img').forEach(img => {
-            observer.observe(img, { attributes: true });
+            cidObserver.observe(img, { attributes: true });
         });
-        
-        // Update status
-        setTimeout(() => {
-            const status = document.getElementById('status');
-            status.textContent = 'IPFSCDN 已启动并正在处理图片...';
-            status.style.background = '#d4edda';
-            status.style.borderColor = '#28a745';
-        }, 2000);
-        
-        // Add random image function
-        let imageCount = 4;
-        window.addRandomImage = function() {
-            const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '96CEB4', 'FFEAA7', 'DDA15E', '9D84B7'];
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            
+
+        // --- IPFS status polling ---
+        function updateNodeStatus() {
+            const statusEl = document.getElementById('nodeStatus');
+            const peerIdEl = document.getElementById('peerId');
+
+            if (ipfscdn.initialized && ipfscdn.helia) {
+                statusEl.textContent = '✅ 运行中';
+                statusEl.classList.remove('pending');
+                try {
+                    peerIdEl.textContent = ipfscdn.helia.libp2p.peerId.toString();
+                    peerIdEl.classList.remove('pending');
+                } catch (_) {
+                    peerIdEl.textContent = '获取中...';
+                }
+            } else {
+                statusEl.textContent = '⏳ 正在初始化...';
+            }
+        }
+
+        const statusTimer = setInterval(() => {
+            updateNodeStatus();
+            if (ipfscdn.initialized) {
+                clearInterval(statusTimer);
+            }
+        }, 1000);
+
+        // --- Add random image ---
+        let imageCount = 6;
+        window.addRandomImage = function () {
+            imageCount++;
+            const randomSeed = Date.now(); // unique seed for picsum
+
             const card = document.createElement('div');
-            card.className = 'image-card';
+            card.className = 'image-item';
             card.innerHTML = `
-                <img src="https://via.placeholder.com/300x200/${color}/FFFFFF?text=Image+${imageCount + 1}" alt="测试图片 ${imageCount + 1}">
+                <img src="https://picsum.photos/400/300?random=${randomSeed}" alt="示例图片 ${imageCount}">
                 <div class="image-info">
-                    <div>图片 ${imageCount + 1}</div>
-                    <div class="cid" data-for="${imageCount}">等待处理...</div>
+                    <div>示例图片 ${imageCount}</div>
+                    <div class="cid" data-for="${imageCount - 1}">等待处理...</div>
                 </div>
             `;
-            
+
             document.getElementById('imageGrid').appendChild(card);
-            
+
             const newImg = card.querySelector('img');
-            observer.observe(newImg, { attributes: true });
-            
-            imageCount++;
+            cidObserver.observe(newImg, { attributes: true });
         };
-        
-        window.clearConsole = function() {
+
+        window.clearConsole = function () {
             consoleDiv.innerHTML = '';
         };
-        
-        // Make ipfscdn accessible globally for debugging
+
+        // Debug access
         window.ipfscdn = ipfscdn;
     </script>
 </body>
