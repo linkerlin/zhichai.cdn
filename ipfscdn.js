@@ -241,6 +241,29 @@ class IPFSCDN {
   }
 
   /**
+   * Build alternate gateway URLs for an IPFS gateway URL
+   */
+  buildIpfsGatewayFallbacks(url) {
+    try {
+      if (!url) return [];
+      const match = url.match(/\/ipfs\/([^/?#]+)([^?#]*)?(\?[^#]*)?/i);
+      if (!match) return [];
+      const cid = match[1];
+      const path = match[2] || '';
+      const query = match[3] || '';
+      const suffix = `${cid}${path}${query}`;
+      return [
+        `https://ipfs.io/ipfs/${suffix}`,
+        `https://cloudflare-ipfs.com/ipfs/${suffix}`,
+        `https://gateway.ipfs.io/ipfs/${suffix}`
+      ];
+    } catch (error) {
+      console.warn('[IPFSCDN] Error building gateway fallbacks:', error);
+      return [];
+    }
+  }
+
+  /**
    * Try to fetch image data directly from the IPFS network by CID
    */
   async fetchImageDataFromIpfs(cidString) {
@@ -441,6 +464,12 @@ class IPFSCDN {
             console.log(`[IPFSCDN] Fetching image from IPFS network: ${cidFromUrl}`);
             imageData = await this.fetchImageDataFromIpfs(cidFromUrl);
             source = 'local'; // fetched via IPFS network
+
+            this.imageCache.set(absoluteURL, cidFromUrl);
+            this._persistCache();
+            this._applyImageData(img, absoluteURL, imageData, cidFromUrl, source);
+            console.log(`[IPFSCDN] Image loaded from IPFS via CID in URL: ${cidFromUrl}`);
+            return;
           } catch (error) {
             console.warn(`[IPFSCDN] IPFS network fetch failed, falling back to gateway: ${cidFromUrl}`);
           }
@@ -448,9 +477,25 @@ class IPFSCDN {
 
         // Fetch the image from original URL as a fallback
         if (!imageData) {
-          console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
-          imageData = await this.fetchImageData(absoluteURL);
-          source = 'remote';
+          const fallbackUrls = cidFromUrl ? this.buildIpfsGatewayFallbacks(absoluteURL) : [];
+          if (fallbackUrls.length > 0) {
+            for (const fallbackUrl of fallbackUrls) {
+              try {
+                console.log(`[IPFSCDN] Fetching image (gateway fallback): ${fallbackUrl}`);
+                imageData = await this.fetchImageData(fallbackUrl);
+                source = 'remote';
+                break;
+              } catch (error) {
+                console.warn(`[IPFSCDN] Gateway fallback failed: ${fallbackUrl}`);
+              }
+            }
+          }
+
+          if (!imageData) {
+            console.log(`[IPFSCDN] Fetching image: ${absoluteURL}`);
+            imageData = await this.fetchImageData(absoluteURL);
+            source = 'remote';
+          }
         }
 
         // Store in IPFS
