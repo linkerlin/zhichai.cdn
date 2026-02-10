@@ -18,6 +18,34 @@ class IPFSCDN {
     this.initialized = false;
     this.initPromise = null;
     this.ipfsFetchTimeoutMs = 8000;
+    this.cacheStorageKey = 'ipfscdn-image-cache-v1';
+    this.placeholderSrc = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+    this._loadCacheFromStorage();
+  }
+
+  _loadCacheFromStorage() {
+    try {
+      const raw = localStorage.getItem(this.cacheStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return;
+      Object.entries(parsed).forEach(([url, cid]) => {
+        if (typeof url === 'string' && typeof cid === 'string') {
+          this.imageCache.set(url, cid);
+        }
+      });
+    } catch (error) {
+      console.warn('[IPFSCDN] Failed to load cache from storage:', error);
+    }
+  }
+
+  _persistCache() {
+    try {
+      const payload = Object.fromEntries(this.imageCache.entries());
+      localStorage.setItem(this.cacheStorageKey, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('[IPFSCDN] Failed to persist cache:', error);
+    }
   }
 
   /**
@@ -92,6 +120,7 @@ class IPFSCDN {
       
       // Cache the mapping
       this.imageCache.set(url, cid.toString());
+      this._persistCache();
       
       // Announce the CID to the network (Helia does this automatically)
       // The libp2p layer will propagate our interest in this content
@@ -134,7 +163,11 @@ class IPFSCDN {
    */
   async hasImage(cid) {
     try {
-      // Try to stat the file - if it exists locally, this will be fast
+      if (this.helia && this.helia.blockstore && typeof this.helia.blockstore.has === 'function') {
+        return await this.helia.blockstore.has(cid);
+      }
+
+      // Fallback for older Helia versions
       await this.fs.stat(cid);
       return true;
     } catch (error) {
@@ -300,6 +333,16 @@ class IPFSCDN {
     this.setIndicator(img, source);
   }
 
+  _setPlaceholderSrc(img, absoluteURL) {
+    if (img.dataset.ipfsPlaceholderApplied === 'true') return;
+    const currentSrc = img.getAttribute('src');
+    if (!currentSrc) return;
+    const currentAbsolute = this.toAbsoluteURL(currentSrc);
+    if (currentAbsolute !== absoluteURL) return;
+    img.src = this.placeholderSrc;
+    img.dataset.ipfsPlaceholderApplied = 'true';
+  }
+
   async _applyImageFromCache(img, absoluteURL) {
     const cidString = this.imageCache.get(absoluteURL);
     if (!cidString) return;
@@ -355,6 +398,7 @@ class IPFSCDN {
     }
 
     img.dataset.ipfsOriginalUrl = absoluteURL;
+    this._setPlaceholderSrc(img, absoluteURL);
 
     // Check if already processing
     const inFlight = this.processingQueue.get(absoluteURL);
@@ -423,6 +467,10 @@ class IPFSCDN {
       } catch (error) {
         console.error(`[IPFSCDN] Failed to process image ${absoluteURL}:`, error);
         this.setIndicator(img, 'remote');
+        if (img.dataset.ipfsPlaceholderApplied === 'true' && img.dataset.ipfsOriginalUrl) {
+          img.src = img.dataset.ipfsOriginalUrl;
+          img.dataset.ipfsPlaceholderApplied = 'false';
+        }
         // Keep original src on error
       }
     })();
