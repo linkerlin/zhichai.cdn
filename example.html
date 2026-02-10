@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFSCDN.js 基本示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        .image-container {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px 0;
+        }
+        
+        .info {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        
+        code {
+            background: #ffe4e4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>IPFSCDN.js 基本使用示例</h1>
+    
+    <div class="info">
+        <strong>说明：</strong>打开浏览器控制台可以看到 IPFSCDN 的工作日志。
+        图片首次加载时会被存储到 IPFS，再次访问页面时会从本地 IPFS 节点加载。
+    </div>
+
+    <div class="image-container">
+        <h2>示例图片 1</h2>
+        <img src="https://via.placeholder.com/600x400/FF6B6B/FFFFFF?text=Example+Image+1" 
+             alt="示例图片 1">
+        <p>这张图片会被 IPFSCDN 自动处理并存储到 IPFS。</p>
+    </div>
+
+    <div class="image-container">
+        <h2>示例图片 2</h2>
+        <img src="https://via.placeholder.com/600x400/4ECDC4/FFFFFF?text=Example+Image+2" 
+             alt="示例图片 2">
+        <p>每张图片都会获得一个唯一的 IPFS CID（内容标识符）。</p>
+    </div>
+
+    <div class="image-container">
+        <h2>示例图片 3</h2>
+        <img src="https://via.placeholder.com/600x400/45B7D1/FFFFFF?text=Example+Image+3" 
+             alt="示例图片 3">
+        <p>图片的 CID 会被添加到 <code>data-ipfs-cid</code> 属性中。</p>
+    </div>
+
+    <div class="info">
+        <h3>在控制台中尝试：</h3>
+        <code>ipfscdn.imageCache</code> - 查看已缓存的图片映射<br>
+        <code>ipfscdn.helia.libp2p.peerId.toString()</code> - 查看你的节点 ID<br>
+        <code>document.querySelectorAll('img[data-ipfs-cid]')</code> - 查看所有已处理的图片
+    </div>
+
+    <!-- 引入 IPFSCDN.js -->
+    <script type="module" src="./ipfscdn.js"></script>
+    
+    <script type="module">
+        import ipfscdn from './ipfscdn.js';
+        
+        // 使 ipfscdn 全局可访问，方便调试
+        window.ipfscdn = ipfscdn;
+        
+        // 监听图片处理完成
+        setTimeout(() => {
+            const images = document.querySelectorAll('img[data-ipfs-cid]');
+            console.log(`已处理 ${images.length} 张图片`);
+            images.forEach((img, index) => {
+                console.log(`图片 ${index + 1} CID:`, img.dataset.ipfsCid);
+            });
+        }, 10000); // 等待10秒让图片处理完成
+    </script>
+</body>
+</html>
