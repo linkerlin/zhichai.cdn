@@ -1,156 +1,141 @@
 # IPFSCDN.js
 
-一个基于浏览器的去中心化 CDN，使用 Helia IPFS 实现 P2P 图片分发。
+一个基于浏览器的去中心化 CDN，使用 Helia IPFS 实现 P2P 图片分发与缓存。
 
 ## 功能特性
 
-- 🚀 **自动拦截图片加载**：页面加载时自动拦截所有 `<img>` 标签
-- 💾 **本地 IPFS 存储**：将图片存储到浏览器的 Helia IPFS 节点
-- 🔄 **智能缓存**：从本地节点加载已存储的图片，减少服务器负载
-- 🌐 **P2P 分发**：自动向 IPFS 网络宣告和分发内容
-- 📊 **动态监控**：自动处理动态添加的图片元素
+- 🚀 **自动拦截图片加载**：页面加载时拦截所有 `<img>` 标签
+- 💾 **本地 IPFS 存储**：将图片存到浏览器内的 Helia IPFS 节点
+- 🔄 **URL→CID 缓存**：使用 localStorage 记录映射，刷新后仍可命中
+- 🌐 **网关 + P2P 兜底**：支持 IPFS 网关 URL，并自动尝试公共网关
+- 🟢 **处理状态指示**：图片右下角显示加载/本地/远程状态点
+- 📊 **动态监控**：自动处理新增的图片节点
+
+## 安装
+
+### 方式一：直接使用文件
+
+把 `ipfscdn.js` 放到你的站点下，然后在页面底部引入：
+
+```html
+<script type="module" src="./ipfscdn.js"></script>
+```
+
+### 方式二：npm
+
+```bash
+npm install ipfscdn
+```
+
+在本地开发环境中引用：
+
+```html
+<script type="module" src="./node_modules/ipfscdn/ipfscdn.js"></script>
+```
+
+> 该库是纯浏览器 ESM 文件，适合直接在浏览器中运行。
 
 ## 快速开始
 
-### 1. 在 HTML 中引入
+最小可用示例：
 
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Page with IPFSCDN</title>
+   <meta charset="UTF-8">
+   <title>IPFSCDN Demo</title>
 </head>
 <body>
-    <h1>我的网页</h1>
-    
-    <!-- 你的图片会被自动处理 -->
-    <img src="https://example.com/image1.jpg" alt="图片 1">
-    <img src="https://example.com/image2.png" alt="图片 2">
-    
-    <!-- 在页面底部引入 IPFSCDN.js -->
-    <script type="module" src="./ipfscdn.js"></script>
+   <img src="https://example.com/image1.jpg" alt="image 1">
+   <img src="https://example.com/image2.png" alt="image 2">
+
+   <script type="module" src="./ipfscdn.js"></script>
 </body>
 </html>
 ```
 
-### 2. 运行演示
+默认会自动启动并处理所有图片，无需手动调用。
+
+## 示例
+
+本仓库包含 [example.html](example.html)（带验证面板）和 [demo.html](demo.html)。运行本地服务器：
 
 ```bash
-# 克隆仓库
-git clone https://github.com/linkerlin/zhichai.cdn.git
-cd zhichai.cdn
-
-# 启动本地服务器
-python3 -m http.server 8080
-# 或者使用 npm
 npm start
 ```
 
-然后在浏览器中打开 `http://localhost:8080/demo.html`
+然后打开：
 
-## 工作原理
+- `http://localhost:8080/example.html`
+- `http://localhost:8080/demo.html`
 
-1. **初始化阶段**
-   - 创建本地 Helia IPFS 节点
-   - 连接到 IPFS 网络
+## 运行机制
 
-2. **图片扫描**
-   - 扫描页面上所有的 `<img>` 标签
-   - 提取图片 URL 并转换为绝对路径
+1. 初始化 Helia IPFS 节点
+2. 扫描页面所有 `<img>`
+3. 将图片 URL 转为绝对路径并建立 `URL → CID` 映射
+4. 优先从本地 IPFS 读取，未命中则回源并写入 IPFS
+5. 对包含 `/ipfs/<cid>` 的 URL，先尝试 P2P 拉取，失败再用网关
+6. 通过 `MutationObserver` 监听新图片
 
-3. **图片处理**
-   - 对每张图片检查本地是否已存储
-   - 如果未存储：
-     - 从原始 URL 获取图片数据
-     - 将图片存储到本地 IPFS 节点
-     - 获取 IPFS CID（内容标识符）
-     - 自动向网络宣告该 CID
-   - 如果已存储：
-     - 直接从本地 IPFS 节点读取
-     - 使用 Blob URL 替换原始 src
+## 使用方式
 
-4. **动态监控**
-   - 使用 MutationObserver 监控 DOM 变化
-   - 自动处理新添加的图片
+### 自动模式（默认）
 
-## API 文档
+只需引入脚本即可：
 
-### IPFSCDN 类
-
-```javascript
-import ipfscdn from './ipfscdn.js';
-
-// 手动启动（通常会自动启动）
-await ipfscdn.start();
-
-// 处理单个图片
-const img = document.querySelector('#myImage');
-await ipfscdn.processImage(img);
-
-// 停止 IPFS 节点
-await ipfscdn.stop();
-
-// 访问 Helia 实例
-console.log('Peer ID:', ipfscdn.helia.libp2p.peerId.toString());
-
-// 查看缓存的图片
-console.log('Cached images:', ipfscdn.imageCache);
+```html
+<script type="module" src="./ipfscdn.js"></script>
 ```
 
-### 主要方法
+### 手动模式
 
-- `init()`: 初始化 Helia IPFS 节点
-- `start()`: 启动 IPFSCDN 系统
-- `processImage(imgElement)`: 处理单个图片元素
-- `interceptImages()`: 拦截页面上所有图片
-- `stop()`: 停止并清理 IPFS 节点
+```html
+<script type="module">
+   import ipfscdn from './ipfscdn.js';
+   window.ipfscdn = ipfscdn; // 方便调试
 
-## 技术栈
+   await ipfscdn.start();
 
-- **Helia** (v6.0.20): 浏览器端 IPFS 实现
-- **@helia/unixfs** (v7.0.4): UnixFS 文件系统支持
-- **multiformats** (v13.4.2): CID 和多格式支持
+   const img = document.querySelector('#myImage');
+   await ipfscdn.processImage(img);
 
-## 浏览器兼容性
+   console.log('Peer ID:', ipfscdn.helia.libp2p.peerId.toString());
+   console.log('Cache:', ipfscdn.imageCache);
+</script>
+```
 
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 15+
+## 数据标记
 
-需要支持：
-- ES6 Modules
-- Web Workers
-- IndexedDB
-- WebRTC (用于 P2P 连接)
+处理后的图片会带上以下属性：
+
+- `data-ipfs-cid`：图片对应的 CID
+- `data-ipfs-original-url`：原始绝对 URL
+- `data-ipfs-source`：`local` 或 `remote`
+
+## API
+
+主要方法：
+
+- `init()`：初始化 Helia
+- `start()`：启动拦截流程（含初始化和扫描）
+- `processImage(imgElement)`：处理单个图片
+- `interceptImages()`：扫描并处理当前页面所有图片
+- `stop()`：停止并清理 Helia 节点
 
 ## 注意事项
 
-1. **CORS 限制**：只能处理允许跨域访问的图片
-2. **存储空间**：图片存储在浏览器的 IndexedDB 中，注意存储限制
-3. **性能考虑**：首次加载图片时需要下载并存储，可能比直接加载稍慢
-4. **网络连接**：需要能够连接到 IPFS 网络的节点
+- **CORS**：图片源必须允许跨域访问，否则无法读取数据。
+- **浏览器存储**：图片存入 IndexedDB，受浏览器配额限制。
+- **首屏延迟**：首次会下载并写入 IPFS，速度可能慢于直连。
+- **网关可用性**：公共网关可能有限流，建议使用可控网关。
 
 ## 开发
 
 ```bash
-# 安装依赖（可选）
-npm install
-
-# 启动开发服务器
 npm start
 ```
-
-## 配置选项
-
-未来版本将支持更多配置选项，如：
-- 自定义 IPFS 节点配置
-- 图片过滤规则
-- 缓存策略
-- 预加载选项
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
 
 ## 许可证
 
